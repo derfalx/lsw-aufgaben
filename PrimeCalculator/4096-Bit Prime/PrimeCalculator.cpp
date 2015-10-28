@@ -17,6 +17,8 @@ void PrimeCalculator::calculatePrime ( unsigned int bit )
   for ( int i = 0; i < 100000; i++ )
   {
     randomNumber = this->generateRandomNumber ( bit );
+//    mpz_out_str ( stdout, 16, randomNumber->get_mpz_t ( ));
+//    std::cout << std::endl;
     isPossiblePrime = this->checkAgainstKnownPrimes ( randomNumber );
     if ( isPossiblePrime )
     {
@@ -77,50 +79,46 @@ mpz_class * PrimeCalculator::generateRandomNumber ( unsigned int bit )
 bool PrimeCalculator::millerRabinTest ( mpz_class * number, int precision )
 {
   bool probablyPrime = true;
-
   // definition we initialize later, to generate base_a
   gmp_randclass * rand = nullptr;
-
   // represents the base a in the miller-rabin-test formular
   mpz_class * const base_a = new mpz_class();
-
   // base 2 needed for the miller-rabin-test
   mpz_class * const base_2 = new mpz_class ( );
   *base_2 = 2;
-
   // represents r in the miller-rabin-test formular
   unsigned long int exponent = 2;
-
   // represents d in the miller-rabin-test formular
   mpz_class * factor = new mpz_class ( );
   *factor = 1;
-
+  //returned object pointer
   mpz_class * rop = new mpz_class ( );
   *rop = 0;
-
   mpz_class * number_less = new mpz_class();
   *number_less = ( *number ) - 1;
 
+  std::cout << "factorizing..." << std::endl;
   while ( true )
   {
     mpz_pow_ui ( rop->get_mpz_t (), base_2->get_mpz_t ( ), exponent );
     if (( *number_less % *rop ) == 0 )
       break;
     else
-      exponent++;
+      ++exponent;
   }
+  std::cout << "..finished" << std::endl;
 
   *factor = *number_less / *rop;
+  // number_less = ( base_2 ^ exponent ) * factor
+//  std::cout << "factor=";
+//  mpz_out_str ( stdout, 10, factor->get_mpz_t ( ));
+//  std::cout << std::endl;
 
-
+  std::cout << "initiating mersenne twister.." << std::endl;
   rand = new gmp_randclass ( gmp_randinit_mt );
   std::srand( std::time( 0 ) );
   rand->seed ( std::rand() );
-
-
-  std::cout << "factor=";
-  mpz_out_str ( stdout, 10, factor->get_mpz_t ( ));
-  std::cout << std::endl;
+  std::cout << "..finished" << std::endl;
 
   mpz_class * module = new mpz_class();
 
@@ -128,41 +126,40 @@ bool PrimeCalculator::millerRabinTest ( mpz_class * number, int precision )
   {
     *base_a = rand->get_z_range ( *number ); // generate a random number from 0 to number - 1
     if ( *base_a < 2 )
-    {
       *base_a += 2;
-
-    }
 
     mpz_powm ( module->get_mpz_t (), base_a->get_mpz_t (), factor->get_mpz_t (), number->get_mpz_t () );
 
-    if ( ! (*module == 1 || *module == *number_less) )
-    {
-      for ( unsigned long int j = 0; j < exponent; j++ )
-      {
-        mpz_pow_ui ( rop->get_mpz_t (), module->get_mpz_t (), 2 );
-        *module = *rop % *number;
-
-        if ( *module == 1 )
-        {
-          probablyPrime = false;
-          break; // we*re done, no prime!
-        }
-        else if ( *module = *number_less )
-        {
-          break; // do outer loop again!
-        }
-        else if ( j == ( exponent - 1 ) )
-        {
-          probablyPrime = false;
-          break; // we're also done
-        }
-      }
-
-      // to cancle the outer loop if the inner got the solution = no prime!
-      if ( !probablyPrime )
-        break;
+    if (  (*module == 1 || *module == *number_less) ) {
+      continue;
     }
+
+    for ( unsigned long int j = 0; j < exponent; j++ )
+    {
+      mpz_pow_ui ( rop->get_mpz_t (), module->get_mpz_t (), 2 );
+      *module = *rop % *number;
+
+      if ( *module == 1 )
+      {
+        probablyPrime = false;
+        break; // we*re done, no prime!
+      }
+      else if ( *module = *number_less )
+      {
+        break; // do outer loop again!
+      }
+      else if ( j == ( exponent - 1 ) )
+      {
+        probablyPrime = false;
+        break; // we're also done
+      }
+    }
+
+    // to cancle the outer loop if the inner got the solution = no prime!
+    if ( !probablyPrime )
+      break;
   }
+
 
   // cleaning up
   delete rop;
